@@ -112,6 +112,60 @@ The specific example, please read example_CC.ipynb.
 
 具体例子请参考 example_CC.ipynb。
 
+#### Shallow-surface array CC example
+#### 浅地表阵列互相关示例
+
+If you want to calculate cross-correlations for shallow-surface array data, you can use the same `ccfj.CC` interface. A ready-to-run example is provided in `examples/example_shallow_surface_cc.py`. The example builds a synthetic linear array with dense station spacing, computes frequency-domain cross-correlations, and converts them back to the time domain for visualization.
+
+如果需要对浅地表阵列数据进行互相关计算，可以直接复用 `ccfj.CC` 接口。仓库中新增了一个可直接运行的示例 `examples/example_shallow_surface_cc.py`。该示例构造了一个浅地表线性台阵的合成数据，完成频率域互相关计算，并转换回时域进行展示。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import ccfj
+
+fs = 250.0
+dt = 1.0 / fs
+nsta = 12
+npts = int(60 * fs)
+fftlen = 2048
+nf = fftlen // 2 + 1
+
+offsets = np.arange(nsta, dtype=np.float32) * 5.0
+time = np.arange(npts, dtype=np.float32) * dt
+
+rng = np.random.default_rng(2026)
+shared = rng.standard_normal(npts).astype(np.float32)
+data = np.zeros((nsta, npts), dtype=np.float32)
+velocity = 300.0
+
+for i in range(nsta):
+    delay = int((offsets[i] / velocity) * fs)
+    shifted = np.roll(shared, delay)
+    shifted[:delay] = 0.0
+    data[i] = shifted + 0.4 * rng.standard_normal(npts).astype(np.float32)
+
+pairs = ccfj.GetStationPairs(nsta)
+startend = np.tile(np.array([0, npts], dtype=np.int32), nsta)
+ccfs = ccfj.CC(
+    npts, nsta, nf, fftlen,
+    pairs, startend, data.reshape(-1),
+    overlaprate=0.5,
+    nThreads=4,
+    fstride=1,
+    ifonebit=1,
+    ifspecwhittenning=0,
+)
+
+cc_time = np.fft.irfft(ccfs, n=fftlen, axis=1)
+lag = (np.arange(fftlen) - fftlen // 2) * dt
+cc_time = np.roll(cc_time, fftlen // 2, axis=1)
+```
+
+For a complete plotting workflow and parameter explanations, please refer to `examples/example_shallow_surface_cc.py`.
+
+若需要完整绘图流程和参数说明，请直接参考 `examples/example_shallow_surface_cc.py`。
+
 ### frequency-Bessel transform method (F-J method)
 ### 频率-贝塞尔变换法
 #### For ambient noise 
